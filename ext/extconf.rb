@@ -27,6 +27,10 @@ else
   ldshared = CONFIG['LDSHARED']
 end
 
+ldshared << " -L#{CONFIG['prefix']}/lib -l#{CONFIG['RUBY_INSTALL_NAME']}"
+
+includedir = CONFIG['prefix'] + 
+
 cc = `which #{CONFIG['CC']}`.chomp
 
 objs = "ktools.o "
@@ -35,9 +39,11 @@ objs << "inotify.o " if $defs.include?("-DHAVE_INOTIFY")
 objs << "epoll.o " if $defs.include?("-DHAVE_EPOLL")
 
 File.open("Makefile", 'w') do |f|
+  %w[RUBY_INSTALL_NAME ruby_version prefix includedir rubyhdrdir sitearch].each {|x| f.puts "#{x} = #{CONFIG[x]}"} if CONFIG['rubyhdrdir']
+  f.puts "deezincludez = -I$(rubyhdrdir)/$(sitearch) -I$(rubyhdrdir)/ruby/backward -I$(rubyhdrdir) -I." if CONFIG['rubyhdrdir']
   f.puts "CC = #{cc}"
   f.puts "LDSHARED = #{ldshared}"
-  f.puts "CFLAGS = #{CONFIG['CFLAGS']} #{$defs.join(' ')}"
+  f.puts "CFLAGS = #{CONFIG['CFLAGS']} #{$defs.join(' ')} $(deezincludez)"
   f.puts "CLEANFILES = *.o *.bundle *.so"
   f.puts "DLLIB = ktools.#{CONFIG['DLEXT']}"
   f.puts "OBJS = #{objs}"
