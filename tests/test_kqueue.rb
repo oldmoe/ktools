@@ -19,7 +19,8 @@ describe "the kqueue interface" do
     kevent(@kqfd, k, 1, nil, 0, nil)
     File.open(file.path, 'w'){|x| x.puts 'foo'}
     n = Kevent.new
-    kevent(@kqfd, nil, 0, n, 1, nil)
+    res = kevent(@kqfd, nil, 0, n, 1, nil)
+    res.should.be > -1
     n[:ident].should.equal file.fileno
     n[:filter].should.equal EVFILT_VNODE
     n[:fflags].should.equal NOTE_WRITE
