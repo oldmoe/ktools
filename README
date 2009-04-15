@@ -1,4 +1,18 @@
 Bringing common kernel APIs into Ruby using FFI.
 
+I plan to support the following kernel APIs:
+
+kqueue (works - see tests/test_kqueue.rb)
+epoll
+inotify
+netlink
+
+and maybe some others!
+
+I will at first hook up the C interfaces as directly as possible, and eventually write 
+Rubyist-friendly wrappers around them.
+
+Build system is currently a mess so bear with me while I make a real one.
+
 yakischloba on freenode
 jakecdouglas at gmail
