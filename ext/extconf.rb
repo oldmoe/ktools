@@ -35,8 +35,8 @@ cc = `which #{CONFIG['CC']}`.chomp
 
 objs = "ktools.o "
 objs << "kqueue.o " if $defs.include?("-DHAVE_KQUEUE")
-objs << "inotify.o " if $defs.include?("-DHAVE_INOTIFY")
-objs << "epoll.o " if $defs.include?("-DHAVE_EPOLL")
+#objs << "inotify.o " if $defs.include?("-DHAVE_INOTIFY")
+#objs << "epoll.o " if $defs.include?("-DHAVE_EPOLL")
 
 File.open("Makefile", 'w') do |f|
   %w[RUBY_INSTALL_NAME ruby_version prefix includedir rubyhdrdir sitearch].each {|x| f.puts "#{x} = #{CONFIG[x]}"} if CONFIG['rubyhdrdir']

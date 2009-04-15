@@ -74,11 +74,10 @@ module Kernel
 
       eval kqc.to_ruby
 
-      # We are attaching directly to the system kqueue function. No reason to wrap, I don't think.
-      attach_function :kqueue, :wrap_kqueue, [], :int
       # Had to write a wrapper for EV_SET since its a macro
       attach_function :ev_set, :wrap_evset, [:pointer, :uint, :short, :ushort, :uint, :int, :pointer], :void
-      # Attach to system kevent function.
+      # We wrap kqueue and kevent because we use rb_thread_blocking_region when it's available in MRI
+      attach_function :kqueue, :wrap_kqueue, [], :int
       attach_function :kevent, :wrap_kevent, [:int, :pointer, :int, :pointer, :int, :pointer], :int
     end
   end
