@@ -1,9 +1,8 @@
+require 'rubygems'
 require 'lib/ktools'
 require 'bacon'
 
-class Bacon::Context
-  include Kernel::Kqueue
-end
+include Kernel::Kqueue
 
 describe "the kqueue interface" do
 
