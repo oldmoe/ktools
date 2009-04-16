@@ -3,7 +3,7 @@ Bringing common kernel APIs into Ruby using FFI.
 I plan to support the following kernel APIs:
 
 kqueue (works - see tests/test_kqueue.rb)
-epoll
+epoll (works - see tests/test_epoll.rb)
 inotify
 netlink
 

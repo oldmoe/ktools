@@ -1,4 +1,10 @@
 #include "ktools.h"
+#include <errno.h>
+
+int get_errno()
+{
+  return errno;
+}
 
 int have_kqueue()
 {

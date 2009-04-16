@@ -8,4 +8,10 @@ module Kernel
     define_method("have_#{m}?") { (self.send "have_#{m}") > 0 ? true : false }
   end
 
+  attach_function :get_errno, [], :int
+
+  def errno
+    SystemCallError.new(get_errno)
+  end
+
 end

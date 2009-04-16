@@ -1,9 +1,9 @@
 #ifndef KTOOLS_H
 #define KTOOLS_H
 
-/*#ifdef HAVE_EPOLL
+#ifdef HAVE_EPOLL
 #include "epoll.h"
-#endif*/
+#endif
 
 #ifdef HAVE_KQUEUE
 #include "kqueue.h"

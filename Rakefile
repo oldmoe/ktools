@@ -17,15 +17,15 @@ task :config do
   #add_define "HAVE_INOTIFY" if inotify = have_func('inotify_init', 'sys/inotify.h')
   #add_define "HAVE_OLD_INOTIFY" if !inotify && have_macro('__NR_inotify_init', 'sys/syscall.h')
 
-  #if have_header('sys/epoll.h')
-  #  File.open("hasEpollTest.c", "w") {|f|
-  #    f.puts "#include <sys/epoll.h>"
-  #    f.puts "int main() { epoll_create(1024); return 0;}"
-  #  }
-  #  (e = system( "gcc hasEpollTest.c -o hasEpollTest " )) and (e = $?.to_i)
-  #  `rm -f hasEpollTest.c hasEpollTest`
-  #  add_define 'HAVE_EPOLL' if e == 0
-  #end
+  if have_header('sys/epoll.h')
+    File.open("hasEpollTest.c", "w") {|f|
+      f.puts "#include <sys/epoll.h>"
+      f.puts "int main() { epoll_create(1024); return 0;}"
+    }
+    (e = system( "gcc hasEpollTest.c -o hasEpollTest " )) and (e = $?.to_i)
+    `rm -f hasEpollTest.c hasEpollTest`
+    add_define 'HAVE_EPOLL' if e == 0
+  end
 
   $ktools_cc = `which #{RbConfig::expand(CONFIG["CC"])}`.chomp
   $ktools_cflags = RbConfig::expand(CONFIG['CFLAGS']).split(" ")
@@ -54,7 +54,9 @@ task :clean do
 end
 
 task :test do
-  sh "bacon tests/*"
+  require 'lib/ktools'
+  sh "bacon tests/test_kqueue.rb" if Kernel.have_kqueue?
+  sh "bacon tests/test_epoll.rb" if Kernel.have_epoll?
 end
 
 task :objs do
