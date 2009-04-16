@@ -14,7 +14,6 @@ struct wrapped_kevent {
   int result;
 };
 
-void tbr_kqueue(int *i);
 void tbr_kevent(struct wrapped_kevent*);
 #endif
 

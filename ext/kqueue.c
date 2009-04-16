@@ -11,24 +11,6 @@ void wrap_evset(struct kevent *kev, unsigned int ident, short filter, unsigned s
 	EV_SET(kev, ident, filter, flags, fflags, data, udata);
 }
 
-int wrap_kqueue()
-{
-  #ifdef HAVE_TBR
-  int r;
-  rb_thread_blocking_region((rb_blocking_function_t *) tbr_kqueue, &r, RUBY_UBF_IO, 0);
-  return r;
-  #else
-  return kqueue();
-  #endif
-}
-
-#ifdef HAVE_TBR
-void tbr_kqueue(int *i)
-{
-  *i = kqueue();
-}
-#endif
-
 int wrap_kevent(int kqfd, struct kevent *changelist, int nchanges, struct kevent *eventlist, int nevents, struct timespec *timeout)
 {
   #ifdef HAVE_TBR
