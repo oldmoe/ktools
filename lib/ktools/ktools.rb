@@ -10,6 +10,7 @@ module Kernel
 
   attach_function :get_errno, [], :int
 
+  # Returns the current system errno as a Ruby Errno object
   def errno
     SystemCallError.new(get_errno)
   end
