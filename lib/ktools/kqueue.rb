@@ -209,7 +209,18 @@ module Kernel
       end
     end
 
-    # Pass an optional timeout float as number of seconds to wait for an event. Default is 0.0 (do not wait).
+    # Poll for an event. Pass an optional timeout float as number of seconds to wait for an event. Default is 0.0 (do not wait).
+    #
+    # Using a timeout will block for the duration of the timeout. Under Ruby 1.9.1, we use rb_thread_blocking_region() under the
+    # hood to allow other threads to run during this call. Prior to 1.9 though, we do not have native threads and hence this call
+    # will block the whole interpreter (all threads) until it returns.
+    #
+    # This call returns a hash, similar to the following:
+    #  => [{:type=>:socket, :target=>#<IO:0x4fa90c>, :event=>:read}]
+    #
+    # * :type - will be the type of event target, i.e. an event set with #add_file will have :type => :file
+    # * :target - the 'target' or 'subject' of the event. This can be a File, IO, process or signal number.
+    # * :event - the event that occurred on the target. This is one of the symbols you passed as :events => [:foo] when adding the event.
     def poll(timeout=0.0)
       k = Kevent.new
       t = Timespec.new
