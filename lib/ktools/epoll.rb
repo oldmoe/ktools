@@ -11,11 +11,7 @@ module Kernel
 
     class Epoll_event < FFI::Struct
       layout :events, :uint32,
-        :data, :pointer
-
-      def [] (key)
-        key == :data ? Epoll_data.new(super(key)) : super(key)
-      end
+        :data, Epoll_data
     end
 
     epc = FFI::ConstGenerator.new do |c|
