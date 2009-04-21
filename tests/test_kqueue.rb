@@ -35,7 +35,7 @@ describe "the kqueue interface" do
   it "should add file events using the ruby API" do
     file = Tempfile.new("kqueue-test")
     kq = Kqueue.new
-    kq.add_file(file, :events => [:write, :delete]).should.be.true
+    kq.add(:file, file, :events => [:write, :delete]).should.be.true
 
     kq.poll.should.be.empty
     File.open(file.path, 'w'){|x| x.puts 'foo'}
@@ -63,7 +63,7 @@ describe "the kqueue interface" do
   it "should add events for socket-style descriptors, then delete them, using the Ruby API" do
     r, w = IO.pipe
     kq = Kqueue.new
-    kq.add_socket(r, :events => [:read]).should.be.true
+    kq.add(:socket, r, :events => [:read]).should.be.true
 
     kq.poll.should.be.empty
     w.write "foo"
@@ -75,11 +75,38 @@ describe "the kqueue interface" do
     res[:event].should.equal :read
 
     kq.poll.should.be.empty
-    kq.delete(r)
+    kq.delete(:socket, r).should.be.true
     w.write "foo"
     kq.poll.should.be.empty
 
     [r,w,kq].each{|i| i.close}
+  end
+
+  it "should add events for a process using the Ruby API" do
+    kq = Kqueue.new
+    # Watch for ourself to fork
+    kq.add(:process, Process.pid, :events => [:fork]).should.be.true
+
+    fpid = fork{ sleep }
+
+    res = kq.poll(1).first
+    res[:target].should.equal Process.pid
+    res[:type].should.equal :process
+    res[:event].should.equal :fork
+
+    # Watch for the child to exit and kill it
+    kq.add(:process, fpid, :events => [:exit])
+    sleep 0.5
+    Process.kill('TERM', fpid)
+
+    res2 = kq.poll(1).first
+    res2[:target].should.equal fpid
+    res2[:type].should.equal :process
+    res2[:event].should.equal :exit
+
+    kq.poll.should.be.empty
+
+    kq.close
   end
 
 end
