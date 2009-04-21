@@ -87,7 +87,7 @@ describe "the kqueue interface" do
     # Watch for ourself to fork
     kq.add(:process, Process.pid, :events => [:fork]).should.be.true
 
-    fpid = fork{ sleep }
+    fpid = fork{ at_exit {exit!}; sleep }
 
     res = kq.poll(1).first
     res[:target].should.equal Process.pid

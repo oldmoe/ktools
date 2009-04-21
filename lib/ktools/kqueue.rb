@@ -348,7 +348,8 @@ module Kernel
       res
     end
 
-    # Delete events for the given event target
+    # Stop generating events for the given type and event target, ie:
+    #  kq.delete(:process, 6244)
     def delete(type, target)
       ident = target.respond_to?(:fileno) ? target.fileno : target
       container = case type

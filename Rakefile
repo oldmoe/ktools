@@ -43,12 +43,15 @@ task :config do
   end
 
   $ktools_ldshared = RbConfig::expand(CONFIG['LDSHARED'])
-  $ktools_ldshared << " -o ktools.#{$ktools_dlext} " + $ktools_srcs.collect{|x| x.gsub(/\.c/, ".o")}.join(" ")
+  $ktools_ldshared << " -o ../lib/ktools.#{$ktools_dlext} " + $ktools_srcs.collect{|x| x.gsub(/\.c/, ".o")}.join(" ")
   $ktools_ldshared << " -L#{RbConfig::expand(CONFIG['libdir'])} #{RbConfig::expand(CONFIG['LIBRUBYARG_SHARED'])}" if build_against_ruby_stuff
 end
 
 task :clean do
   chdir "ext" do
+    sh "rm -f *.o *.bundle *.so"
+  end
+  chdir "lib" do
     sh "rm -f *.o *.bundle *.so"
   end
 end

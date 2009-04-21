@@ -1,18 +1,49 @@
 Bringing common kernel APIs into Ruby using FFI.
+http://github.com/yakischloba/ktools
+
+Synopsis:
+
+#  irb(main):001:0> require 'ktools'
+#  => true
+#  irb(main):002:0> r, w = IO.pipe
+#  => [#<IO:0x4fa90c>, #<IO:0x4fa880>]
+#  irb(main):003:0> kq = Kqueue.new
+#  => #<Kernel::Kqueue:0x4f43a4 @kqfd=6, @fds={}>
+#  irb(main):004:0> kq.add(:socket, r, :events => [:read, :write])
+#  => true
+#  irb(main):005:0> kq.poll
+#  => []
+#  irb(main):006:0> w.write "foo"
+#  => 3
+#  irb(main):007:0> kq.poll
+#  => [{:type=>:socket, :target=>#<IO:0x4fa90c>, :event=>:read}]
+#  irb(main):008:0> [r, w, kq].each {|i| i.close}
+
 
 I plan to support the following kernel APIs:
 
 kqueue (works - see tests/test_kqueue.rb)
-epoll (works - see tests/test_epoll.rb)
+epoll (works - see tests/test_epoll.rb. Needs Ruby wrapper.)
 inotify
 netlink
 
-and maybe some others!
+and maybe some others! I will at first hook up the C interfaces as directly 
+as possible, and then write Rubyist-friendly wrappers around them. Kqueue
+currently has a (I think) decent wrapper and epoll is up next.
 
-I will at first hook up the C interfaces as directly as possible, and eventually write 
-Rubyist-friendly wrappers around them.
 
-Build system is currently a mess so bear with me while I make a real one.
+To install:
+
+git clone git://github.com/yakischloba/ktools.git
+cd ktools
+gem build
+sudo gem install ktools-<version>.gem
+
+Also gems are on Rubyforge, so you can simply 'sudo gem install ktools', but commits will
+be frequent for some time, so you'll probably want to be pulling the latest from Github.
+
+Please file all issues on the Github issue tracker. Patches (with tests) are welcome and 
+encouraged, as are suggestions about API design, etc. It's all up in the air right now.
 
 yakischloba on freenode
 jakecdouglas at gmail
