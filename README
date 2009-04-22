@@ -37,7 +37,7 @@ To install:
 
 git clone git://github.com/yakischloba/ktools.git
 cd ktools
-gem build
+gem build ktools.gemspec
 sudo gem install ktools-<version>.gem
 
 Also gems are on Rubyforge, so you can simply 'sudo gem install ktools', but commits will
