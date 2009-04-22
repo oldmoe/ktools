@@ -23,13 +23,14 @@ Synopsis:
 I plan to support the following kernel APIs:
 
 kqueue (works - see tests/test_kqueue.rb)
-epoll (works - see tests/test_epoll.rb. Needs Ruby wrapper.)
+epoll (works - see tests/test_epoll.rb)
 inotify
 netlink
 
 and maybe some others! I will at first hook up the C interfaces as directly 
-as possible, and then write Rubyist-friendly wrappers around them. Kqueue
-currently has a (I think) decent wrapper and epoll is up next.
+as possible, and then write Rubyist-friendly wrappers around them.
+
+Currently kqueue and epoll have Ruby wrapper APIs.
 
 
 To install:
