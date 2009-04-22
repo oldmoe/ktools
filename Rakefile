@@ -57,6 +57,7 @@ task :clean do
 end
 
 task :test do
+  require 'rubygems'
   require 'lib/ktools'
   require 'bacon'
   Bacon.summary_on_exit
