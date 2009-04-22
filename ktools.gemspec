@@ -1,12 +1,13 @@
 Gem::Specification.new do |s|
   s.name = "ktools"
-  s.version = "0.0.1"
-  s.date = "2009-04-21"
+  s.version = "0.0.2"
+  s.date = "2009-04-22"
   s.authors = ["Jake Douglas"]
   s.email = "jakecdouglas@gmail.com"
   s.rubyforge_project = "ktools"
   s.has_rdoc = true
   s.add_dependency('ffi')
+  s.add_dependency('bacon')
   s.summary = "Bringing common kernel APIs into Ruby using FFI"
   s.homepage = "http://www.github.com/yakischloba/ktools"
   s.description = "Bringing common kernel APIs into Ruby using FFI"

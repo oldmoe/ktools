@@ -58,8 +58,10 @@ end
 
 task :test do
   require 'lib/ktools'
-  sh "bacon tests/test_kqueue.rb" if Kernel.have_kqueue?
-  sh "bacon tests/test_epoll.rb" if Kernel.have_epoll?
+  require 'bacon'
+  Bacon.summary_on_exit
+  load "tests/test_kqueue.rb" if Kernel.have_kqueue?
+  load "tests/test_epoll.rb" if Kernel.have_epoll?
 end
 
 task :objs do

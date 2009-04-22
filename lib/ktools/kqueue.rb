@@ -115,7 +115,7 @@ module Kernel
 
     # We provide the raw C interface above. Now we OO-ify it.
 
-    # Creates a new kqueue object. Will raise an error if the operation fails.
+    # Creates a new kqueue event queue. Will raise an error if the operation fails.
     def initialize
       @fds = {}
       @pids = {}
@@ -137,13 +137,18 @@ module Kernel
         add_process(target, options)
       when :signal
         add_signal(target, options)
+      else
+        raise ArgumentError.new("Unknown event type #{type}")
       end
     end
 
     # Add events on a file to the Kqueue. kqueue requires that a file actually be opened (to get a descriptor)
     # before it can be monitored. You can pass a File object here, or a String of the pathname, in which
     # case we'll try to open the file for you. In either case, a File object will be returned as the :target 
-    # in the event returned by #poll. Valid events here are as follows, using descriptions from the kqueue man pages:
+    # in the event returned by #poll. If you want to keep track of it yourself, you can just pass the file
+    # descriptor number (and that's what you'll get back.)
+    #
+    # Valid events here are as follows, using descriptions from the kqueue man pages:
     #
     # * :delete - "The unlink() system call was called on the file referenced by the descriptor."
     # * :write  - "A write occurred on the file referenced by the descriptor."
@@ -174,22 +179,26 @@ module Kernel
       fflags, flags = options.values_at :events, :flags
       raise ArgumentError.new("must specify which file events to watch for") unless fflags
 
-      file = file.kind_of?(File) || file.kind_of?(Tempfile) ? file : File.open(file, 'r')
+      file = file.kind_of?(String) ? File.open(file, 'r') : file
+      fdnum = file.respond_to?(:fileno) ? file.fileno : file
 
       k = Kevent.new
       flags = flags ? flags.inject(0){|m,i| m | KQ_FLAGS[i] } : EV_CLEAR
       fflags = fflags.inject(0){|m,i| m | KQ_FFLAGS[i] }
-      ev_set(k, file.fileno, EVFILT_VNODE, EV_ADD | flags, fflags, 0, nil)
+      ev_set(k, fdnum, EVFILT_VNODE, EV_ADD | flags, fflags, 0, nil)
 
       if kevent(@kqfd, k, 1, nil, 0, nil) == -1
         return false
       else
-        @fds[file.fileno] = {:target => file, :kevent => k}
+        @fds[fdnum] = {:target => file, :event => k}
         return true
       end
     end
 
-    # Add events to a socket-style descriptor (socket or pipe). Supported events are:
+    # Add events to a socket-style descriptor (socket or pipe). Your target can be either
+    # an IO object (socket, pipe), or a file descriptor number.
+    #
+    # Supported events are:
     #
     # * :read - The descriptor has become readable.
     # * :write - The descriptor has become writeable.
@@ -213,18 +222,19 @@ module Kernel
     #  irb(main):007:0> kq.poll
     #  => [{:type=>:socket, :target=>#<IO:0x4fa90c>, :event=>:read}]
     #  irb(main):008:0> [r, w, kq].each {|i| i.close}
-    def add_socket(io, options={})
+    def add_socket(target, options={})
       filters, flags = options.values_at :events, :flags
       flags = flags ? flags.inject(0){|m,i| m | KQ_FLAGS[i] } : EV_CLEAR
       filters = filters ? filters.inject(0){|m,i| m | KQ_FILTERS[i] } : EVFILT_READ | EVFILT_WRITE
+      fdnum = target.respond_to?(:fileno) ? target.fileno : target
 
       k = Kevent.new
-      ev_set(k, io.fileno, filters, EV_ADD | flags, 0, 0, nil)
+      ev_set(k, fdnum, filters, EV_ADD | flags, 0, 0, nil)
 
       if kevent(@kqfd, k, 1, nil, 0, nil) == -1
         return false
       else
-        @fds[io.fileno] = {:target => io, :kevent => k}
+        @fds[fdnum] = {:target => target, :event => k}
         return true
       end
     end
@@ -263,7 +273,7 @@ module Kernel
       if kevent(@kqfd, k, 1, nil, 0, nil) == -1
         return false
       else
-        @pids[pid] = {:target => pid, :kevent => k}
+        @pids[pid] = {:target => pid, :event => k}
         return true
       end
     end
@@ -362,7 +372,7 @@ module Kernel
       end
       h = container[ident]
       return false if h.nil?
-      k = h[:kevent]
+      k = h[:event]
       ev_set(k, k[:ident], k[:filter], EV_DELETE, k[:fflags], 0, nil)
       kevent(@kqfd, k, 1, nil, 0, nil)
       container.delete(ident)

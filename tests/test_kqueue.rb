@@ -1,6 +1,3 @@
-require 'lib/ktools'
-require 'bacon'
-
 describe "the kqueue interface" do
 
   it "should return a valid kqueue file descriptor" do
