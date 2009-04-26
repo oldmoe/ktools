@@ -22,8 +22,6 @@ Gem::Specification.new do |s|
     "lib/ktools/kqueue.rb",
     "ext/ktools.c",
     "ext/ktools.h",
-    "ext/epoll.c",
-    "ext/epoll.h",
     "ext/kqueue.c",
     "ext/kqueue.h",
     "tests/test_epoll.rb",
