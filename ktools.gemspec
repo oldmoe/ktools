@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name = "ktools"
-  s.version = "0.0.2"
-  s.date = "2009-04-22"
+  s.version = "0.0.3"
+  s.date = "2009-04-26"
   s.authors = ["Jake Douglas"]
   s.email = "jakecdouglas@gmail.com"
   s.rubyforge_project = "ktools"

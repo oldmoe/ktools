@@ -16,7 +16,7 @@ Synopsis:
 #  irb(main):006:0> w.write "foo"
 #  => 3
 #  irb(main):007:0> kq.poll
-#  => [{:type=>:socket, :target=>#<IO:0x4fa90c>, :event=>:read}]
+#  => [{:type=>:socket, :target=>#<IO:0x4fa90c>, :events=>[:read]}]
 #  irb(main):008:0> [r, w, kq].each {|i| i.close}
 
 
