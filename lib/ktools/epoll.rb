@@ -2,18 +2,18 @@ module Kernel
   class Epoll
     extend FFI::Library
 
-    class Epoll_data < FFI::Struct
+    class Epoll_data < FFI::Struct #:nodoc:
       layout :ptr, :pointer,
         :fd, :int,
         :u32, :uint32,
         :u64, :uint64
     end
 
-    class Epoll_event < FFI::Struct
+    class Epoll_event < FFI::Struct #:nodoc:
       layout :events, :uint32,
         :data, :pointer
 
-      def [] key
+      def [] key #:nodoc:
         key == :data ? Epoll_data.new(super(key)) : super(key)
       end
     end
@@ -145,7 +145,7 @@ module Kernel
     #
     # * :type - will be the type of event target, i.e. an event set with #add_socket will have :type => :socket
     # * :target - the 'target' or 'subject' of the event. This can be a File, IO, process or signal number.
-    # * :event - the event that occurred on the target. This is one of the symbols you passed as :events => [:foo] when adding the event.
+    # * :event - the event that occurred on the target. This is one or more of the symbols you passed as :events => [:foo] when adding the event.
     #
     # Note: even though epoll only supports :socket style descriptors, we keep :type for consistency with other APIs.
     def poll(timeout=0.0)

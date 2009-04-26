@@ -3,7 +3,7 @@ module Kernel
   class Kqueue
     extend FFI::Library
 
-    class Kevent < FFI::Struct
+    class Kevent < FFI::Struct #:nodoc:
       layout :ident, :uint, 
       :filter, :short, 
       :flags, :ushort, 
@@ -283,7 +283,7 @@ module Kernel
     #
     # * :type - will be the type of event target, i.e. an event set with #add_file will have :type => :file
     # * :target - the 'target' or 'subject' of the event. This can be a File, IO, process or signal number.
-    # * :event - the event that occurred on the target. This is one of the symbols you passed as :events => [:foo] when adding the event.
+    # * :event - the event that occurred on the target. This is one or more of the symbols you passed as :events => [:foo] when adding the event.
     def poll(timeout=0.0)
       k = Kevent.new
 
