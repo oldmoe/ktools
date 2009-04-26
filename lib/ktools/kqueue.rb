@@ -12,11 +12,6 @@ module Kernel
       :udata, :pointer
     end
 
-    class Timespec < FFI::Struct
-      layout :tv_sec, :long,
-        :tv_nsec, :long
-    end
-
     kqc = FFI::ConstGenerator.new do |c|
       c.include 'sys/event.h'
 
@@ -111,7 +106,7 @@ module Kernel
     # Attach directly to kqueue function, no wrapper needed
     attach_function :kqueue, [], :int
     # We wrap kqueue and kevent because we use rb_thread_blocking_region when it's available in MRI
-    attach_function :kevent, :wrap_kevent, [:int, :pointer, :int, :pointer, :int, Timespec], :int
+    attach_function :kevent, [:int, :pointer, :int, :pointer, :int, :pointer], :int
 
     # We provide the raw C interface above. Now we OO-ify it.
 
@@ -121,6 +116,7 @@ module Kernel
       @pids = {}
       @kqfd = kqueue
       raise SystemCallError.new("Error creating kqueue descriptor", get_errno) unless @kqfd > 0
+      @kqfd = IO.for_fd(@kqfd)
     end
 
     # Generic method for adding events. This simply calls the proper add_foo method specified by the type symbol.
@@ -187,7 +183,7 @@ module Kernel
       fflags = fflags.inject(0){|m,i| m | KQ_FFLAGS[i] }
       ev_set(k, fdnum, EVFILT_VNODE, EV_ADD | flags, fflags, 0, nil)
 
-      if kevent(@kqfd, k, 1, nil, 0, nil) == -1
+      if kevent(@kqfd.fileno, k, 1, nil, 0, nil) == -1
         return false
       else
         @fds[fdnum] = {:target => file, :event => k}
@@ -231,7 +227,7 @@ module Kernel
       k = Kevent.new
       ev_set(k, fdnum, filters, EV_ADD | flags, 0, 0, nil)
 
-      if kevent(@kqfd, k, 1, nil, 0, nil) == -1
+      if kevent(@kqfd.fileno, k, 1, nil, 0, nil) == -1
         return false
       else
         @fds[fdnum] = {:target => target, :event => k}
@@ -270,7 +266,7 @@ module Kernel
       k = Kevent.new
       ev_set(k, pid, EVFILT_PROC, EV_ADD | flags, fflags, 0, nil)
 
-      if kevent(@kqfd, k, 1, nil, 0, nil) == -1
+      if kevent(@kqfd.fileno, k, 1, nil, 0, nil) == -1
         return false
       else
         @pids[pid] = {:target => pid, :event => k}
@@ -292,17 +288,20 @@ module Kernel
     # * :event - the event that occurred on the target. This is one of the symbols you passed as :events => [:foo] when adding the event.
     def poll(timeout=0.0)
       k = Kevent.new
-      t = Timespec.new
-      t[:tv_sec] = timeout.to_i
-      t[:tv_nsec] = ((timeout - timeout.to_i) * 1e9).to_i
 
-      case kevent(@kqfd, nil, 0, k, 1, t)
-      when -1
-        [errno]
-      when 0
-        []
+      r, w, e = IO.select([@kqfd], nil, nil, timeout)
+
+      if r.nil? || r.empty?
+        return []
       else
-        [process_event(k)]
+        case kevent(@kqfd.fileno, nil, 0, k, 1, nil)
+        when -1
+          [errno]
+        when 0
+          []
+        else
+          [process_event(k)]
+        end
       end
     end
 
@@ -374,14 +373,14 @@ module Kernel
       return false if h.nil?
       k = h[:event]
       ev_set(k, k[:ident], k[:filter], EV_DELETE, k[:fflags], 0, nil)
-      kevent(@kqfd, k, 1, nil, 0, nil)
+      kevent(@kqfd.fileno, k, 1, nil, 0, nil)
       container.delete(ident)
       return true
     end
 
     # Close the kqueue descriptor. This essentially shuts down your kqueue and renders all active events on this kqueue removed. 
     def close
-      IO.for_fd(@kqfd).close
+      @kqfd.close
     end
 
   end
