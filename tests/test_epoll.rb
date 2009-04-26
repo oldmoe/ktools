@@ -44,7 +44,7 @@ describe "the epoll interface" do
     w.write 'foo'
     res = ep.poll.first
 
-    res[:event].should.equal :read
+    res[:events].should.include :read
     res[:target].fileno.should.equal r.fileno
     res[:type].should.equal :socket
 
@@ -64,6 +64,25 @@ describe "the epoll interface" do
     ep.poll.should.be.empty
 
     [r,w,ep].each{|i| i.close}
+  end
+  
+  it "should provide aggregated events on a target" do
+    r, w = IO.pipe
+    ep = Epoll.new
+
+    ep.add(:socket, r, :events => [:read, :hangup]).should.be.true
+    ep.poll.should.be.empty
+
+    w.write 'foo'
+    w.close
+
+    res = ep.poll.first
+    res[:type].should.equal :socket
+    res[:target].fileno.should.equal r.fileno
+    res[:events].should.include :read
+    res[:events].should.include :hangup
+
+    [r, ep].each{|i| i.close}
   end
 
 end

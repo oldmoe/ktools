@@ -116,7 +116,7 @@ module Kernel
     #  irb(main):006:0> w.write 'foo'
     #  => 3
     #  irb(main):007:0> ep.poll
-    #  => [{:target=>#<IO:0x89be38c>, :event=>:read, :type=>:socket}]
+    #  => [{:target=>#<IO:0x89be38c>, :events=>[:read], :type=>:socket}]
     #  irb(main):008:0> [r, w, ep].each{|x| x.close }
     def add_socket(target, options={})
       fdnum = target.respond_to?(:fileno) ? target.fileno : target
@@ -141,7 +141,7 @@ module Kernel
     # then call epoll_wait() with 0 timeout, instead of blocking the whole interpreter with epoll_wait().
     #
     # This call returns an array of hashes, similar to the following:
-    #  => [{:type=>:socket, :target=>#<IO:0x4fa90c>, :event=>:read}]
+    #  => [{:type=>:socket, :target=>#<IO:0x4fa90c>, :events=>[:read]}]
     #
     # * :type - will be the type of event target, i.e. an event set with #add_socket will have :type => :socket
     # * :target - the 'target' or 'subject' of the event. This can be a File, IO, process or signal number.
@@ -170,23 +170,16 @@ module Kernel
     def process_event(ev) #:nodoc:
       h = @fds[ev[:data][:fd]]
       return nil if h.nil?
-
-      event = if ev[:events] & EPOLLIN == EPOLLIN
-        :read
-      elsif ev[:events] & EPOLLOUT == EPOLLOUT
-        :write
-      elsif ev[:events] & ERPOLLPRI == EPOLLPRI
-        :priority
-      elsif ev[:events] & EPOLLERR == EPOLLERR
-        :error
-      elsif ev[:events] & EPOLLHUP == EPOLLHUP
-        :hangup
-      elsif Epoll.const_defined?("EPOLLRDHUP") and ev[:events] & EPOLLRDHUP == EPOLLRDHUP
-        :remote_hangup
-      end
-
-      delete(:socket, h[:target]) if ev[:events] & EPOLLONESHOT == EPOLLONESHOT
-      {:target => h[:target], :event => event, :type => :socket}
+      events = []
+      events << :read if ev[:events] & EPOLLIN == EPOLLIN
+      events << :write if ev[:events] & EPOLLOUT == EPOLLOUT
+      events << :priority if ev[:events] & EPOLLPRI == EPOLLPRI
+      events << :error if ev[:events] & EPOLLERR == EPOLLERR
+      events << :hangup if ev[:events] & EPOLLHUP == EPOLLHUP
+      events << :remote_hangup if Epoll.const_defined?("EPOLLRDHUP") and ev[:events] & EPOLLRDHUP == EPOLLRDHUP
+      events << :oneshot if h[:event][:events] & EPOLLONESHOT == EPOLLONESHOT
+      delete(:socket, h[:target]) if events.include?(:oneshot) || events.include?(:hangup) || events.include?(:remote_hangup)
+      {:target => h[:target], :events => events, :type => :socket}
     end
 
     # Stop generating events for the given type and event target, ie:
@@ -198,6 +191,7 @@ module Kernel
       h = @fds[ident]
       return false if h.nil?
       epoll_ctl(@epfd.fileno, EPOLL_CTL_DEL, ident, h[:event])
+      @fds.delete(ident)
       return true
     end
 
