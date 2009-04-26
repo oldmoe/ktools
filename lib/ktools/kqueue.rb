@@ -167,7 +167,7 @@ module Kernel
     #  irb(main):006:0> file.delete
     #  => #<File:/tmp/kqueue-test20090417-602-evm5wc-0>
     #  irb(main):007:0> kq.poll
-    #  => [{:type=>:file, :target=>#<File:/tmp/kqueue-test20090417-602-evm5wc-0>, :event=>:delete}]
+    #  => [{:type=>:file, :target=>#<File:/tmp/kqueue-test20090417-602-evm5wc-0>, :events=>[:delete]}]
     #  irb(main):008:0> file.close and kq.close 
     #  => nil
     def add_file(file, options={})
@@ -215,7 +215,7 @@ module Kernel
     #  irb(main):006:0> w.write "foo"
     #  => 3
     #  irb(main):007:0> kq.poll
-    #  => [{:type=>:socket, :target=>#<IO:0x4fa90c>, :event=>:read}]
+    #  => [{:type=>:socket, :target=>#<IO:0x4fa90c>, :events=>[:read]}]
     #  irb(main):008:0> [r, w, kq].each {|i| i.close}
     def add_socket(target, options={})
       filters, flags = options.values_at :events, :flags
@@ -255,7 +255,7 @@ module Kernel
     #  irb(main):005:0> Process.kill('TERM', fpid)
     #  => 1
     #  irb(main):006:0> kq.poll.first
-    #  => {:event=>:exit, :type=>:process, :target=>616}
+    #  => {:events=>[:exit], :type=>:process, :target=>616}
     #
     def add_process(pid, options={})
       flags, fflags = options.values_at :flags, :events
@@ -279,7 +279,7 @@ module Kernel
     # then call kevent() with 0 timeout, instead of blocking the whole interpreter with kevent().
     #
     # This call returns an array of hashes, similar to the following:
-    #  => [{:type=>:socket, :target=>#<IO:0x4fa90c>, :event=>:read}]
+    #  => [{:type=>:socket, :target=>#<IO:0x4fa90c>, :events=>[:read]}]
     #
     # * :type - will be the type of event target, i.e. an event set with #add_file will have :type => :file
     # * :target - the 'target' or 'subject' of the event. This can be a File, IO, process or signal number.
@@ -308,47 +308,35 @@ module Kernel
       when EVFILT_VNODE
         h = @fds[k[:ident]]
         return nil if h.nil?
-        event = if k[:fflags] & NOTE_DELETE == NOTE_DELETE
-          :delete
-        elsif k[:fflags] & NOTE_WRITE == NOTE_WRITE
-          :write
-        elsif k[:fflags] & NOTE_EXTEND == NOTE_EXTEND
-          :extend
-        elsif k[:fflags] & NOTE_ATTRIB == NOTE_ATTRIB
-          :attrib
-        elsif k[:fflags] & NOTE_LINK == NOTE_LINK
-          :link
-        elsif k[:fflags] & NOTE_RENAME == NOTE_RENAME
-          :rename
-        elsif k[:fflags] & NOTE_REVOKE == NOTE_REVOKE
-          :revoke
-        end
-        delete(:file, k[:ident]) if event == :delete || event == :revoke
-        {:target => h[:target], :type => :file, :event => event}
+        events = []
+        events << :delete if k[:fflags] & NOTE_DELETE == NOTE_DELETE
+        events << :write if k[:fflags] & NOTE_WRITE == NOTE_WRITE
+        events << :extend if k[:fflags] & NOTE_EXTEND == NOTE_EXTEND
+        events << :attrib if k[:fflags] & NOTE_ATTRIB == NOTE_ATTRIB
+        events << :link if k[:fflags] & NOTE_LINK == NOTE_LINK
+        events << :rename if k[:fflags] & NOTE_RENAME == NOTE_RENAME
+        events << :revoke if k[:fflags] & NOTE_REVOKE == NOTE_REVOKE
+        delete(:file, k[:ident]) if events.include?(:delete) || events.include?(:revoke)
+        {:target => h[:target], :type => :file, :events => events}
       when EVFILT_READ
         h = @fds[k[:ident]]
         return nil if h.nil?
-        {:target => h[:target], :type => :socket, :event => :read}
+        {:target => h[:target], :type => :socket, :events => [:read]}
       when EVFILT_WRITE
         h = @fds[k[:ident]]
         return nil if h.nil?
-        {:target => h[:target], :type => :socket, :event => :write}
+        {:target => h[:target], :type => :socket, :events => [:write]}
       when EVFILT_PROC
         h = @pids[k[:ident]]
         return nil if h.nil?
-        event = if k[:fflags] & NOTE_EXIT == NOTE_EXIT
-          :exit
-        elsif k[:fflags] & NOTE_FORK == NOTE_FORK
-          :fork
-        elsif k[:fflags] & NOTE_EXEC == NOTE_EXEC
-          :exec
-        elsif Kqueue.const_defined?("NOTE_SIGNAL") and k[:fflags] & NOTE_SIGNAL == NOTE_SIGNAL
-          :signal
-        elsif Kqueue.const_defined?("NOTE_REAP") and k[:fflags] & NOTE_REAP == NOTE_REAP
-          :reap
-        end
-        delete(:process, k[:ident]) if event == :exit
-        {:target => h[:target], :type => :process, :event => event}
+        events = []
+        events << :exit if k[:fflags] & NOTE_EXIT == NOTE_EXIT
+        events << :fork if k[:fflags] & NOTE_FORK == NOTE_FORK
+        events << :exec if k[:fflags] & NOTE_EXEC == NOTE_EXEC
+        events << :signal if Kqueue.const_defined?("NOTE_SIGNAL") and k[:fflags] & NOTE_SIGNAL == NOTE_SIGNAL
+        events << :reap if Kqueue.const_defined?("NOTE_REAP") and k[:fflags] & NOTE_REAP == NOTE_REAP
+        delete(:process, k[:ident]) if events.include?(:exit)
+        {:target => h[:target], :type => :process, :events => events}
       end
 
       delete(res[:type], res[:target]) if k[:flags] & EV_ONESHOT == EV_ONESHOT

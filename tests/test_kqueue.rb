@@ -42,7 +42,7 @@ describe "the kqueue interface" do
     res[:target].class.should.equal Tempfile
     res[:target].fileno.should.equal file.fileno
     res[:type].should.equal :file
-    res[:event].should.equal :write
+    res[:events].should.include :write
 
     kq.poll.should.be.empty
     file.delete
@@ -51,7 +51,7 @@ describe "the kqueue interface" do
     res2[:target].class.should.equal Tempfile
     res2[:target].fileno.should.equal file.fileno
     res2[:type].should.equal :file
-    res2[:event].should.equal :delete
+    res2[:events].should.include :delete
 
     file.close
     kq.close
@@ -69,7 +69,7 @@ describe "the kqueue interface" do
     res[:target].class.should.equal IO
     res[:target].fileno.should.equal r.fileno
     res[:type].should.equal :socket
-    res[:event].should.equal :read
+    res[:events].should.include :read
 
     kq.poll.should.be.empty
     kq.delete(:socket, r).should.be.true
@@ -89,7 +89,7 @@ describe "the kqueue interface" do
     res = kq.poll(1).first
     res[:target].should.equal Process.pid
     res[:type].should.equal :process
-    res[:event].should.equal :fork
+    res[:events].should.include :fork
 
     # Watch for the child to exit and kill it
     kq.add(:process, fpid, :events => [:exit])
@@ -99,10 +99,31 @@ describe "the kqueue interface" do
     res2 = kq.poll(1).first
     res2[:target].should.equal fpid
     res2[:type].should.equal :process
-    res2[:event].should.equal :exit
+    res2[:events].should.include :exit
 
     kq.poll.should.be.empty
 
+    kq.close
+  end
+
+  it "should provide aggregated events on a single target" do
+    file = Tempfile.new("kqueue-test")
+    kq = Kqueue.new
+    kq.add(:file, file, :events => [:write, :delete]).should.be.true
+
+    kq.poll.should.be.empty
+    File.open(file.path, 'w'){|x| x.puts 'foo'}
+    file.delete
+
+    res = kq.poll.first
+    res.class.should.equal Hash
+    res[:target].class.should.equal Tempfile
+    res[:target].fileno.should.equal file.fileno
+    res[:type].should.equal :file
+    res[:events].should.include :write
+    res[:events].should.include :delete
+
+    file.close
     kq.close
   end
 
