@@ -14,7 +14,7 @@ Gem::Specification.new do |s|
   s.extensions = ["Rakefile"]
   s.files =
     ["ktools.gemspec",
-    "README",
+    "README.rdoc",
     "Rakefile",
     "lib/ktools.rb",
     "lib/ktools/ktools.rb",
