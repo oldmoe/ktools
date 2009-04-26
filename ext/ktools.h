@@ -2,7 +2,7 @@
 #define KTOOLS_H
 
 #ifdef HAVE_EPOLL
-#include "epoll.h"
+#include <sys/epoll.h>
 #endif
 
 #ifdef HAVE_KQUEUE

@@ -50,14 +50,14 @@ module Kernel
       :error => EPOLLERR
     }
 
+    # Missing in some kernel versions
     EP_FLAGS[:remote_hangup] = EPOLLRDHUP if const_defined?("EPOLLRDHUP")
 
     # Attach directly to epoll_create
     attach_function :epoll_create, [:int], :int
     # Attach directly to epoll_ctl
     attach_function :epoll_ctl, [:int, :int, :int, :pointer], :int
-    # Attach to the epoll_wait wrapper so we can use rb_thread_blocking_region when possible
-    attach_function :epoll_wait, :wrap_epoll_wait, [:int, :pointer, :int, :int], :int
+    attach_function :epoll_wait, [:int, :pointer, :int, :int], :int
 
     # Creates a new epoll event queue. Takes an optional size parameter (default 1024) that is a hint
     # to the kernel about how many descriptors it will be handling. Read man epoll_create for details 
@@ -66,6 +66,7 @@ module Kernel
       @fds = {}
       @epfd = epoll_create(size)
       raise SystemCallError.new("Error creating epoll descriptor", get_errno) unless @epfd > 0
+      @epfd = IO.for_fd(@epfd)
     end
 
     # Generic method for adding events. This simply calls the proper add_foo method specified by the type symbol.
@@ -126,7 +127,7 @@ module Kernel
       ev[:data] = Epoll_data.new
       ev[:data][:fd] = fdnum
 
-      if epoll_ctl(@epfd, EPOLL_CTL_ADD, fdnum, ev) == -1
+      if epoll_ctl(@epfd.fileno, EPOLL_CTL_ADD, fdnum, ev) == -1
         return false
       else
         @fds[fdnum] = {:target => target, :event => ev}
@@ -136,9 +137,8 @@ module Kernel
 
     # Poll for an event. Pass an optional timeout float as number of seconds to wait for an event. Default is 0.0 (do not wait).
     #
-    # Using a timeout will block for the duration of the timeout. Under Ruby 1.9.1, we use rb_thread_blocking_region() under the
-    # hood to allow other threads to run during this call. Prior to 1.9 though, we do not have native threads and hence this call
-    # will block the whole interpreter (all threads) until it returns.
+    # Using a timeout will block the current thread for the duration of the timeout. We use select() on the epoll descriptor and
+    # then call epoll_wait() with 0 timeout, instead of blocking the whole interpreter with epoll_wait().
     #
     # This call returns an array of hashes, similar to the following:
     #  => [{:type=>:socket, :target=>#<IO:0x4fa90c>, :event=>:read}]
@@ -149,15 +149,21 @@ module Kernel
     #
     # Note: even though epoll only supports :socket style descriptors, we keep :type for consistency with other APIs.
     def poll(timeout=0.0)
-      timeout = (timeout * 1000).to_i
       ev = Epoll_event.new
-      case epoll_wait(@epfd, ev, 1, timeout)
-      when -1
-        [errno]
-      when 0
-        []
+
+      r, w, e = IO.select([@epfd], nil, nil, timeout)
+
+      if r.nil? || r.empty?
+        return []
       else
-        [process_event(ev)]
+        case epoll_wait(@epfd.fileno, ev, 1, 0)
+        when -1
+          [errno]
+        when 0
+          []
+        else
+          [process_event(ev)]
+        end
       end
     end
 
@@ -191,12 +197,12 @@ module Kernel
       ident = target.respond_to?(:fileno) ? target.fileno : target
       h = @fds[ident]
       return false if h.nil?
-      epoll_ctl(@epfd, EPOLL_CTL_DEL, ident, h[:event])
+      epoll_ctl(@epfd.fileno, EPOLL_CTL_DEL, ident, h[:event])
       return true
     end
 
     def close
-      IO.for_fd(@epfd).close
+      @epfd.close
     end
 
   end

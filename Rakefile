@@ -12,7 +12,6 @@ end
 task :config do
   $ktools_defines = []
   $ktools_dlext = RbConfig::expand(CONFIG['DLEXT'])
-  (add_define "HAVE_TBR" and build_against_ruby_stuff = true) if have_func('rb_thread_blocking_region')
   add_define "HAVE_KQUEUE" if have_header("sys/event.h") and have_header("sys/queue.h")
   #add_define "HAVE_INOTIFY" if inotify = have_func('inotify_init', 'sys/inotify.h')
   #add_define "HAVE_OLD_INOTIFY" if !inotify && have_macro('__NR_inotify_init', 'sys/syscall.h')
@@ -34,17 +33,10 @@ task :config do
   $ktools_srcs = ["ktools.c"]
   $ktools_srcs << "kqueue.c" if $ktools_defines.include?("-DHAVE_KQUEUE")
   $ktools_srcs << "inotify.c" if $ktools_defines.include?("-DHAVE_INOTIFY")
-  $ktools_srcs << "epoll.c" if $ktools_defines.include?("-DHAVE_EPOLL")
   $ktools_srcs << "netlink.c" if $ktools_defines.include?("-DHAVE_NETLINK")
-
-  if CONFIG["rubyhdrdir"]
-    hdrdir = RbConfig::expand(CONFIG["rubyhdrdir"])
-    $ktools_includes = "-I. -I#{hdrdir}/#{RbConfig::expand(CONFIG["sitearch"])} -I#{hdrdir}" if build_against_ruby_stuff
-  end
 
   $ktools_ldshared = RbConfig::expand(CONFIG['LDSHARED'])
   $ktools_ldshared << " -o ../lib/ktools.#{$ktools_dlext} " + $ktools_srcs.collect{|x| x.gsub(/\.c/, ".o")}.join(" ")
-  $ktools_ldshared << " -L#{RbConfig::expand(CONFIG['libdir'])} #{RbConfig::expand(CONFIG['LIBRUBYARG_SHARED'])}" if build_against_ruby_stuff
 end
 
 task :clean do

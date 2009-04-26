@@ -105,7 +105,6 @@ module Kernel
     attach_function :ev_set, :wrap_evset, [:pointer, :uint, :short, :ushort, :uint, :int, :pointer], :void
     # Attach directly to kqueue function, no wrapper needed
     attach_function :kqueue, [], :int
-    # We wrap kqueue and kevent because we use rb_thread_blocking_region when it's available in MRI
     attach_function :kevent, [:int, :pointer, :int, :pointer, :int, :pointer], :int
 
     # We provide the raw C interface above. Now we OO-ify it.
@@ -276,9 +275,8 @@ module Kernel
 
     # Poll for an event. Pass an optional timeout float as number of seconds to wait for an event. Default is 0.0 (do not wait).
     #
-    # Using a timeout will block for the duration of the timeout. Under Ruby 1.9.1, we use rb_thread_blocking_region() under the
-    # hood to allow other threads to run during this call. Prior to 1.9 though, we do not have native threads and hence this call
-    # will block the whole interpreter (all threads) until it returns.
+    # Using a timeout will block the current thread for the duration of the timeout. We use select() on the kqueue descriptor and
+    # then call kevent() with 0 timeout, instead of blocking the whole interpreter with kevent().
     #
     # This call returns an array of hashes, similar to the following:
     #  => [{:type=>:socket, :target=>#<IO:0x4fa90c>, :event=>:read}]
