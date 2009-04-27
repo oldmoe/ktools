@@ -285,20 +285,22 @@ module Kernel
     # * :target - the 'target' or 'subject' of the event. This can be a File, IO, process or signal number.
     # * :event - the event that occurred on the target. This is one or more of the symbols you passed as :events => [:foo] when adding the event.
     def poll(timeout=0.0)
-      k = Kevent.new
+      ary = FFI::MemoryPointer.new(Kevent, 1024)
 
       r, w, e = IO.select([@kqfd], nil, nil, timeout)
 
       if r.nil? || r.empty?
         return []
       else
-        case kevent(@kqfd.fileno, nil, 0, k, 1, nil)
+        case (count = kevent(@kqfd.fileno, nil, 0, ary, 1024, nil))
         when -1
           [errno]
         when 0
           []
         else
-          [process_event(k)]
+          res = []
+          count.times{|i| res << process_event(Kevent.new(ary[i]))}
+          res
         end
       end
     end

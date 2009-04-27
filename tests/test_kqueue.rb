@@ -127,4 +127,33 @@ describe "the kqueue interface" do
     kq.close
   end
 
+  it "should provide multiple events in one poll" do
+    kq = Kqueue.new
+
+    file = Tempfile.new("kqueue-test")
+    r, w = IO.pipe
+    kq.add(:file, file, :events => [:delete]).should.be.true
+    kq.add(:socket, r, :events => [:read]).should.be.true
+
+    kq.poll.should.be.empty
+
+    file.delete
+    w.write 'foo'
+
+    res = kq.poll
+    res.size.should.equal 2
+
+    res.first[:target].fileno.should.equal file.fileno
+    res.first[:type].should.equal :file
+    res.first[:events].size.should.equal 1
+    res.first[:events].should.include :delete
+
+    res.last[:target].fileno.should.equal r.fileno
+    res.last[:type].should.equal :socket
+    res.last[:events].size.should.equal 1
+    res.last[:events].should.include :read
+
+    [file, r, w, kq].each{|i| i.close}
+  end
+
 end

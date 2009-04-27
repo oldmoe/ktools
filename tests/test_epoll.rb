@@ -10,9 +10,7 @@ describe "the epoll interface" do
     r, w = IO.pipe
     ev = Epoll::Epoll_event.new
     ev[:events] = Epoll::EPOLLIN
-    ev[:data] = Epoll::Epoll_data.new
     ev[:data][:fd] = r.fileno
-    ev[:data][:u32] = 12345
     Epoll::epoll_ctl(@epfd, Epoll::EPOLL_CTL_ADD, r.fileno, ev).should.equal 0
     rev = Epoll::Epoll_event.new
     Epoll::epoll_wait(@epfd, rev, 1, 50).should.equal 0
@@ -20,7 +18,6 @@ describe "the epoll interface" do
     Epoll::epoll_wait(@epfd, rev, 1, 50).should.equal 1
     rev[:events].should.equal Epoll::EPOLLIN
     rev[:data][:fd].should.equal r.fileno
-    rev[:data][:u32].should.equal 12345
     w.close
     r.close
     w.should.be.closed
@@ -83,6 +80,36 @@ describe "the epoll interface" do
     res[:events].should.include :hangup
 
     [r, ep].each{|i| i.close}
+  end
+
+  it "should provide multiple events in one poll" do
+    ep = Epoll.new
+
+    r1, w1 = IO.pipe
+    r2, w2 = IO.pipe
+    ep.add(:socket, r1, :events => [:read]).should.be.true
+    ep.add(:socket, r2, :events => [:read]).should.be.true
+
+    ep.poll.should.be.empty
+
+    w1.write 'foo'
+    w2.write 'bar'
+
+    res = ep.poll
+    res.size.should.equal 2
+
+    # for some reason we get these in reverse order. figure out why someday.
+    res.first[:target].fileno.should.equal r2.fileno
+    res.first[:type].should.equal :socket
+    res.first[:events].size.should.equal 1
+    res.first[:events].should.include :read
+
+    res.last[:target].fileno.should.equal r1.fileno
+    res.last[:type].should.equal :socket
+    res.last[:events].size.should.equal 1
+    res.last[:events].should.include :read
+
+    [r1, w1, r2, w2, ep].each{|i| i.close}
   end
 
 end

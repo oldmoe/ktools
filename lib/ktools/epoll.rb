@@ -2,7 +2,7 @@ module Kernel
   class Epoll
     extend FFI::Library
 
-    class Epoll_data < FFI::Struct #:nodoc:
+    class Epoll_data < FFI::Union #:nodoc:
       layout :ptr, :pointer,
         :fd, :int,
         :u32, :uint32,
@@ -11,11 +11,7 @@ module Kernel
 
     class Epoll_event < FFI::Struct #:nodoc:
       layout :events, :uint32,
-        :data, :pointer
-
-      def [] key #:nodoc:
-        key == :data ? Epoll_data.new(super(key)) : super(key)
-      end
+        :data, Epoll_data
     end
 
     epc = FFI::ConstGenerator.new do |c|
@@ -124,7 +120,6 @@ module Kernel
 
       ev = Epoll_event.new
       ev[:events] = events
-      ev[:data] = Epoll_data.new
       ev[:data][:fd] = fdnum
 
       if epoll_ctl(@epfd.fileno, EPOLL_CTL_ADD, fdnum, ev) == -1
@@ -149,20 +144,22 @@ module Kernel
     #
     # Note: even though epoll only supports :socket style descriptors, we keep :type for consistency with other APIs.
     def poll(timeout=0.0)
-      ev = Epoll_event.new
+      ary = FFI::MemoryPointer.new(Epoll_event, 1024)
 
       r, w, e = IO.select([@epfd], nil, nil, timeout)
 
       if r.nil? || r.empty?
         return []
       else
-        case epoll_wait(@epfd.fileno, ev, 1, 0)
+        case (count = epoll_wait(@epfd.fileno, ary, 1024, 0))
         when -1
           [errno]
         when 0
           []
         else
-          [process_event(ev)]
+          res = []
+          count.times{|i| res << process_event(Epoll_event.new(ary[i]))}
+          res
         end
       end
     end
